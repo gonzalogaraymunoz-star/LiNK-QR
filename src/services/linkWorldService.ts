@@ -456,3 +456,45 @@ export async function createInteraction(input: {
   return String(data);
 }
 
+export interface LinkPersonStudy {
+  person_id: string;
+  universal_code: string;
+  display_name: string | null;
+  status: string;
+  primary_business_id: string | null;
+  interaction_count: number;
+  businesses_touched: number;
+  products_touched: number;
+  estimated_margin_total: number;
+  last_interaction_at: string | null;
+  interaction_sources: string[];
+  channels: string[];
+  signals: Record<string, Array<{
+    value: string;
+    confidence: string;
+    source: string;
+    observed_at: string;
+  }>>;
+  max_conversion_level: number | null;
+  max_priority_score: number | null;
+  conversion_assessments: Array<{
+    lead_id: string;
+    level: number | null;
+    label: string | null;
+    priority: number | null;
+    reason: string | null;
+    recommended_action: string | null;
+    active: boolean | null;
+    assessed_at: string | null;
+  }>;
+}
+
+export async function getPersonStudies(): Promise<LinkPersonStudy[]> {
+  const { data, error } = await client()
+    .from('link_person_study_v')
+    .select('*')
+    .order('last_interaction_at', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data || []) as LinkPersonStudy[];
+}
+
