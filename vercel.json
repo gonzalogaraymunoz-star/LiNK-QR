@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "installCommand": "bun install --frozen-lockfile",
-  "buildCommand": "bun run build",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist"
 }
