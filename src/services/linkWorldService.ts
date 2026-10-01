@@ -278,7 +278,7 @@ export interface LinkProduct {
 
 export interface LinkQrRegistryEntry {
   id: string;
-  entity_type: 'prospect' | 'business' | 'product';
+  entity_type: 'person' | 'prospect' | 'business' | 'product';
   entity_id: string;
   business_id: string | null;
   universal_code: string;
@@ -360,5 +360,99 @@ export function resolveQrRegistryEntry(
         item.universal_code.toLowerCase() === query
     ) || null
   );
+}
+
+export interface LinkPersonLeadNode {
+  lead_id: string;
+  business_id: string | null;
+  business_name: string | null;
+  business_global_id: string | null;
+  stage: string | null;
+  source: string | null;
+  source_page: string | null;
+  interested_product: string | null;
+  created_at: string | null;
+}
+
+export interface LinkPersonGraph {
+  person_id: string;
+  universal_code: string;
+  qr_token: string;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  status: 'provisional' | 'verified' | 'merged' | 'inactive';
+  primary_business_id: string | null;
+  person_created_at: string;
+  lead_count: number;
+  interaction_count: number;
+  last_interaction_at: string | null;
+  leads: LinkPersonLeadNode[];
+}
+
+export interface LinkInteraction {
+  id: string;
+  person_id: string;
+  business_id: string | null;
+  product_id: string | null;
+  lead_id: string | null;
+  action_type: string;
+  channel: string | null;
+  source: string;
+  margin_estimated: number | null;
+  currency: string;
+  confidence: 'observed' | 'inferred' | 'estimated';
+  metadata: Record<string, unknown>;
+  occurred_at: string;
+  created_at: string;
+}
+
+export async function getPersonGraph(): Promise<LinkPersonGraph[]> {
+  const { data, error } = await client()
+    .from('link_person_graph_v')
+    .select('*')
+    .neq('status', 'merged')
+    .order('last_interaction_at', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data || []) as LinkPersonGraph[];
+}
+
+export async function getInteractions(limit = 500): Promise<LinkInteraction[]> {
+  const { data, error } = await client()
+    .from('link_interactions')
+    .select('*')
+    .order('occurred_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data || []) as LinkInteraction[];
+}
+
+export async function createInteraction(input: {
+  person_id: string;
+  business_id?: string | null;
+  product_id?: string | null;
+  action_type: string;
+  channel?: string | null;
+  source?: string;
+  margin_estimated?: number | null;
+  currency?: string;
+  confidence?: LinkInteraction['confidence'];
+  metadata?: Record<string, unknown>;
+}): Promise<string> {
+  const { data, error } = await client().rpc('link_ingest_interaction_v1', {
+    p_person_id: input.person_id,
+    p_business_id: input.business_id ?? null,
+    p_product_id: input.product_id ?? null,
+    p_action_type: input.action_type,
+    p_channel: input.channel ?? null,
+    p_source: input.source || 'link-id',
+    p_margin_estimated: input.margin_estimated ?? null,
+    p_currency: input.currency || 'CLP',
+    p_confidence: input.confidence || 'observed',
+    p_metadata: input.metadata || {},
+    p_occurred_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+  return String(data);
 }
 
