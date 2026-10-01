@@ -1,7 +1,10 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, Session, SupabaseClient } from '@supabase/supabase-js';
 
-const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const DEFAULT_SUPABASE_URL = 'https://zgbnjlrxzvzpigmwidsp.supabase.co';
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_RE_eqhBaLeaUMHuBjLUY2Q_OZNBm9_A';
+
+const envUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 
 let supabaseInstance: SupabaseClient | null = null;
 
@@ -27,14 +30,49 @@ export function getSupabaseClient(): SupabaseClient | null {
   if (!isConfigured) return null;
 
   if (!supabaseInstance) {
-    try {
-      supabaseInstance = createClient(url, key);
-    } catch (err) {
-      console.error('Error instantiating Supabase client:', err);
-      return null;
-    }
+    supabaseInstance = createClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
   }
+
   return supabaseInstance;
+}
+
+export async function getCurrentSession(): Promise<Session | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  const { data } = await client.auth.getSession();
+  return data.session;
+}
+
+export async function signInWithPassword(email: string, password: string) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase no está configurado.');
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data.session;
+}
+
+export async function sendMagicLink(email: string) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase no está configurado.');
+  const { error } = await client.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.origin,
+    },
+  });
+  if (error) throw error;
+}
+
+export async function signOut() {
+  const client = getSupabaseClient();
+  if (!client) return;
+  await client.auth.signOut();
 }
 
 export async function testSupabaseConnection(): Promise<{ success: boolean; message: string }> {
@@ -42,25 +80,16 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
   if (!client) {
     return {
       success: false,
-      message: 'Supabase no está configurado. Especifica la URL y Anon Key.',
+      message: 'Supabase no está configurado.',
     };
   }
 
   try {
-    const { error } = await client.from('personas').select('id').limit(1);
-    if (error) {
-      // Table might not exist yet
-      if (error.code === '42P01') {
-        return {
-          success: true,
-          message: 'Conectado a Supabase con éxito (las tablas del esquema aún deben crearse en el SQL Editor).',
-        };
-      }
-      return { success: false, message: `Error Supabase: ${error.message}` };
-    }
-    return { success: true, message: 'Conexión con Supabase verificada y tablas activas.' };
+    const { error } = await client.from('link_world_businesses').select('id').limit(1);
+    if (error) return { success: false, message: `Error Supabase: ${error.message}` };
+    return { success: true, message: 'Conexión con LINK CONTROL CENTRAL verificada.' };
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    return { success: false, message: `Fallo de conexión: ${errMsg}` };
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message };
   }
 }
