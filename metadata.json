@@ -1,10 +1,12 @@
 {
-  "name": "Remix Remix LINK OS QR — Centro de Control",
-  "description": "Centro de control de identidades y comportamiento QR para administración interna y operaciones de LINK.",
+  "name": "LINK ID — Identidad, QR y Cupones",
+  "description": "Capa transversal de identidad para leads de LINK World. Asigna códigos LINK y QR permanentes, registra actividad y conecta consumos de LINK Cupones con la fuente de verdad en Supabase.",
   "requestFramePermissions": [
     "camera"
   ],
   "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+    "LINK_WORLD_LEAD_IDENTITY",
+    "QR_GENERATION_AND_SCAN",
+    "LINK_COUPONS_REDEMPTION"
   ]
 }
