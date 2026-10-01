@@ -383,11 +383,26 @@ export interface LinkPersonGraph {
   phone: string | null;
   status: 'provisional' | 'verified' | 'merged' | 'inactive';
   primary_business_id: string | null;
+  primary_business_name?: string | null;
   person_created_at: string;
   lead_count: number;
   interaction_count: number;
   last_interaction_at: string | null;
   leads: LinkPersonLeadNode[];
+  country?: string | null;
+  city?: string | null;
+  preferred_language?: string | null;
+  preferred_channel?: string | null;
+  relationship_type?: string | null;
+  interests?: string[];
+  notes?: string | null;
+  next_action?: string | null;
+  next_action_at?: string | null;
+  field_sources?: Record<string, { source?: string; updated_at?: string }>;
+  profile_updated_at?: string | null;
+  detected_channels?: string[];
+  completeness_percent?: number;
+  profile_stage?: 'inicial' | 'identificada' | 'enriquecida' | 'conocida';
 }
 
 export interface LinkInteraction {
@@ -409,12 +424,45 @@ export interface LinkInteraction {
 
 export async function getPersonGraph(): Promise<LinkPersonGraph[]> {
   const { data, error } = await client()
-    .from('link_person_graph_v')
+    .from('link_person_profile_v')
     .select('*')
     .neq('status', 'merged')
     .order('last_interaction_at', { ascending: false, nullsFirst: false });
   if (error) throw error;
   return (data || []) as LinkPersonGraph[];
+}
+
+export async function updatePersonProfile(input: {
+  person_id: string;
+  display_name: string;
+  email: string;
+  phone: string;
+  country: string;
+  city: string;
+  preferred_language: string;
+  preferred_channel: string;
+  relationship_type: string;
+  interests: string[];
+  notes: string;
+  next_action: string;
+  next_action_at: string | null;
+}): Promise<void> {
+  const { error } = await client().rpc('link_update_person_profile_v1', {
+    p_person_id: input.person_id,
+    p_display_name: input.display_name,
+    p_email: input.email,
+    p_phone: input.phone,
+    p_country: input.country,
+    p_city: input.city,
+    p_preferred_language: input.preferred_language,
+    p_preferred_channel: input.preferred_channel,
+    p_relationship_type: input.relationship_type,
+    p_interests: input.interests,
+    p_notes: input.notes,
+    p_next_action: input.next_action,
+    p_next_action_at: input.next_action_at,
+  });
+  if (error) throw error;
 }
 
 export async function getInteractions(limit = 500): Promise<LinkInteraction[]> {
