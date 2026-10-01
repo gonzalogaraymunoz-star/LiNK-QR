@@ -35,6 +35,7 @@ import {
 } from './services/supabaseClient.ts';
 import {
   createCouponOffer,
+  createLeadInteraction,
   getBusinesses,
   getCouponOffers,
   getCouponRedemptions,
@@ -507,6 +508,18 @@ export default function App() {
         if (foundLead) {
           await trackQrEvent(foundLead, 'QR_SCANNED', 'Lectura desde LINK ID', {
             scanned_value_type: value.toLowerCase().startsWith('lnk_qr_') ? 'token' : 'code',
+          });
+          await createLeadInteraction({
+            lead_id: foundLead.lead_id,
+            action_type: 'qr_scanned',
+            channel: 'qr',
+            source: 'link-id-scanner',
+            confidence: 'observed',
+            metadata: {
+              registry_id: foundEntry.id,
+              entity_type: foundEntry.entity_type,
+              scanned_value_type: value.toLowerCase().startsWith('lnk_qr_') ? 'token' : 'code',
+            },
           });
         }
 
