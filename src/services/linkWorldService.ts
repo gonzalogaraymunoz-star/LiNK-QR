@@ -263,3 +263,102 @@ export function resolveIdentity(
     ) || null
   );
 }
+
+export interface LinkProduct {
+  id: string;
+  business_id: string;
+  name: string;
+  code: string | null;
+  category: string | null;
+  stage: string;
+  currency: string;
+  public_price: number | null;
+  global_id: string;
+}
+
+export interface LinkQrRegistryEntry {
+  id: string;
+  entity_type: 'prospect' | 'business' | 'product';
+  entity_id: string;
+  business_id: string | null;
+  universal_code: string;
+  qr_token: string;
+  label: string;
+  status: 'active' | 'paused' | 'revoked';
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LinkQrRegistryEvent {
+  id: string;
+  qr_registry_id: string;
+  event_type: string;
+  actor_user_id: string | null;
+  context: string | null;
+  metadata: Record<string, unknown>;
+  occurred_at: string;
+}
+
+export async function getProducts(): Promise<LinkProduct[]> {
+  const { data, error } = await client()
+    .from('link_world_products')
+    .select('id,business_id,name,code,category,stage,currency,public_price,global_id')
+    .order('name');
+  if (error) throw error;
+  return (data || []) as LinkProduct[];
+}
+
+export async function getQrRegistry(): Promise<LinkQrRegistryEntry[]> {
+  const { data, error } = await client()
+    .from('link_qr_registry')
+    .select('*')
+    .order('entity_type')
+    .order('label');
+  if (error) throw error;
+  return (data || []) as LinkQrRegistryEntry[];
+}
+
+export async function trackRegistryQrEvent(
+  entry: LinkQrRegistryEntry,
+  eventType: string,
+  context: string,
+  metadata: Record<string, unknown> = {}
+): Promise<LinkQrRegistryEvent> {
+  const supabase = client();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!userData.user) throw new Error('Debes iniciar sesión para registrar actividad.');
+
+  const { data, error } = await supabase
+    .from('link_qr_registry_events')
+    .insert({
+      qr_registry_id: entry.id,
+      event_type: eventType,
+      actor_user_id: userData.user.id,
+      context,
+      metadata,
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as LinkQrRegistryEvent;
+}
+
+export function resolveQrRegistryEntry(
+  entries: LinkQrRegistryEntry[],
+  tokenOrCode: string
+): LinkQrRegistryEntry | null {
+  const query = tokenOrCode.trim().toLowerCase();
+  if (!query) return null;
+
+  return (
+    entries.find(
+      (item) =>
+        item.qr_token.toLowerCase() === query ||
+        item.universal_code.toLowerCase() === query
+    ) || null
+  );
+}
+
