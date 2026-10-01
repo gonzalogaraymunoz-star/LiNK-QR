@@ -20,7 +20,6 @@ import {
   TicketCheck,
   Users,
   WalletCards,
-  XCircle,
 } from 'lucide-react';
 import { QrCodeRenderer } from './components/QrCodeRenderer.tsx';
 import {
@@ -236,19 +235,26 @@ export default function App() {
       setOffers(offerData);
       setRedemptions(redemptionData);
 
-      if (!selectedIdentityId && identityData.length) setSelectedIdentityId(identityData[0].identity_id);
-      if (!couponLeadId && identityData.length) setCouponLeadId(identityData[0].identity_id);
-      if (!offerBusinessId && businessData.length) {
-        const couponBusiness = businessData.find((b) => b.slug === 'link-cupones');
-        setOfferBusinessId(couponBusiness?.id || businessData[0].id);
+      if (identityData.length) {
+        setSelectedIdentityId((current) => current || identityData[0].identity_id);
+        setCouponLeadId((current) => current || identityData[0].identity_id);
       }
-      if (!selectedOfferId && offerData.length) setSelectedOfferId(offerData[0].id);
+      if (businessData.length) {
+        setOfferBusinessId((current) => {
+          if (current) return current;
+          const couponBusiness = businessData.find((b) => b.slug === 'link-cupones');
+          return couponBusiness?.id || businessData[0].id;
+        });
+      }
+      if (offerData.length) {
+        setSelectedOfferId((current) => current || offerData[0].id);
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [session, selectedIdentityId, couponLeadId, offerBusinessId, selectedOfferId]);
+  }, [session]);
 
   useEffect(() => {
     loadAll();
@@ -539,16 +545,16 @@ export default function App() {
 
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {[
-                ['Leads mapeados', identities.length, Users],
-                ['Negocios LINK', businesses.length, Building2],
-                ['Eventos QR', events.length, ScanLine],
-                ['Cupones activos', offers.filter((o) => o.status === 'active').length, TicketCheck],
-                ['Por liquidar', money(totalLinkDue), WalletCards],
-              ].map(([label, value, Icon]) => (
-                <div key={String(label)} className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-4">
+                { label: 'Leads mapeados', value: identities.length, Icon: Users },
+                { label: 'Negocios LINK', value: businesses.length, Icon: Building2 },
+                { label: 'Eventos QR', value: events.length, Icon: ScanLine },
+                { label: 'Cupones activos', value: offers.filter((o) => o.status === 'active').length, Icon: TicketCheck },
+                { label: 'Por liquidar', value: money(totalLinkDue), Icon: WalletCards },
+              ].map(({ label, value, Icon }) => (
+                <div key={label} className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-4">
                   <Icon className="w-4 h-4 mb-4" />
                   <div className="text-xl font-bold">{String(value)}</div>
-                  <div className="text-[11px] text-[#66685f] mt-1">{String(label)}</div>
+                  <div className="text-[11px] text-[#66685f] mt-1">{label}</div>
                 </div>
               ))}
             </div>
