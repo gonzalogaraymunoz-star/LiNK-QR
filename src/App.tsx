@@ -24,6 +24,8 @@ import {
 import { QrCodeRenderer } from './components/QrCodeRenderer.tsx';
 import { QrStudioView } from './components/QrStudioView.tsx';
 import { PersonsView } from './components/PersonsView.tsx';
+import { LeadDashboard } from './components/LeadDashboard.tsx';
+import { CouponOfferProfilePanel } from './components/CouponOfferProfilePanel.tsx';
 import {
   getCurrentSession,
   getSupabaseClient,
@@ -36,7 +38,9 @@ import {
   getBusinesses,
   getCouponOffers,
   getCouponRedemptions,
+  getCouponProfiles,
   getLeadIdentities,
+  getLeadWorkboard,
   getInteractions,
   getPersonGraph,
   getPersonStudies,
@@ -52,6 +56,8 @@ import {
   LinkCouponRedemption,
   LinkInteraction,
   LinkLeadIdentity,
+  LinkLeadWorkboard,
+  LinkCouponOfferProfile,
   LinkPersonGraph,
   LinkPersonStudy,
   LinkProduct,
@@ -265,6 +271,7 @@ export default function App() {
 
   const [businesses, setBusinesses] = useState<LinkBusiness[]>([]);
   const [identities, setIdentities] = useState<LinkLeadIdentity[]>([]);
+  const [leadWorkboard, setLeadWorkboard] = useState<LinkLeadWorkboard[]>([]);
   const [persons, setPersons] = useState<LinkPersonGraph[]>([]);
   const [personStudies, setPersonStudies] = useState<LinkPersonStudy[]>([]);
   const [interactions, setInteractions] = useState<LinkInteraction[]>([]);
@@ -273,6 +280,7 @@ export default function App() {
   const [qrRegistry, setQrRegistry] = useState<LinkQrRegistryEntry[]>([]);
   const [offers, setOffers] = useState<LinkCouponOffer[]>([]);
   const [redemptions, setRedemptions] = useState<LinkCouponRedemption[]>([]);
+  const [couponProfiles, setCouponProfiles] = useState<LinkCouponOfferProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -332,6 +340,7 @@ export default function App() {
       const [
         businessData,
         identityData,
+        leadWorkboardData,
         personData,
         personStudyData,
         interactionData,
@@ -340,9 +349,11 @@ export default function App() {
         eventData,
         offerData,
         redemptionData,
+        couponProfileData,
       ] = await Promise.all([
         getBusinesses(),
         getLeadIdentities(),
+        getLeadWorkboard(),
         getPersonGraph(),
         getPersonStudies(),
         getInteractions(),
@@ -351,9 +362,11 @@ export default function App() {
         getQrEvents(),
         getCouponOffers(),
         getCouponRedemptions(),
+        getCouponProfiles(),
       ]);
       setBusinesses(businessData);
       setIdentities(identityData);
+      setLeadWorkboard(leadWorkboardData);
       setPersons(personData);
       setPersonStudies(personStudyData);
       setInteractions(interactionData);
@@ -362,6 +375,7 @@ export default function App() {
       setEvents(eventData);
       setOffers(offerData);
       setRedemptions(redemptionData);
+      setCouponProfiles(couponProfileData);
 
       if (identityData.length) {
         setSelectedIdentityId((current) => current || identityData[0].identity_id);
@@ -415,6 +429,9 @@ export default function App() {
   const selectedIdentity =
     identities.find((item) => item.identity_id === selectedIdentityId) || identities[0] || null;
   const selectedOffer = offers.find((offer) => offer.id === selectedOfferId) || offers[0] || null;
+  const selectedOfferProfile = selectedOffer
+    ? couponProfiles.find((profile) => profile.offer_id === selectedOffer.id) || null
+    : null;
   const couponIdentity =
     identities.find((item) => item.identity_id === couponLeadId) || identities[0] || null;
 
@@ -711,6 +728,16 @@ export default function App() {
               ))}
             </div>
 
+            <LeadDashboard
+              leads={leadWorkboard}
+              businesses={businesses}
+              onRefresh={loadAll}
+              onOpenLead={(identityId) => {
+                setSelectedIdentityId(identityId);
+                setSection('leads');
+              }}
+            />
+
             <div className="grid lg:grid-cols-2 gap-4">
               <div className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -917,6 +944,9 @@ export default function App() {
                   <div className="text-center text-[#fffdf7]">
                     <ScanLine className="w-10 h-10 mx-auto text-[#d8ff58] mb-2" />
                     <div className="text-xs">Activa la cámara o pega un código LINK</div>
+                    <div className="text-[10px] text-white/55 mt-2 max-w-xs mx-auto">
+                      Reconoce persona, entrada, negocio o producto y registra una interacción real en LINK. Desde ahí puede continuar a seguimiento, cupón o consumo.
+                    </div>
                   </div>
                 )}
               </div>
@@ -1164,7 +1194,7 @@ export default function App() {
                   >
                     {identities.map((lead) => (
                       <option key={lead.identity_id} value={lead.identity_id}>
-                        {lead.universal_code} · {lead.full_name || lead.company || 'Lead'}
+                        {lead.identity_label || lead.person_display_name || lead.email || lead.phone || 'Identidad por resolver'} · {lead.business_name || 'Sin negocio'}
                       </option>
                     ))}
                   </select>
@@ -1214,6 +1244,14 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            <CouponOfferProfilePanel
+              offer={selectedOffer}
+              profile={selectedOfferProfile}
+              products={products}
+              redemptions={redemptions}
+              onRefresh={loadAll}
+            />
 
             <div className="grid xl:grid-cols-2 gap-4">
               <div className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-5">
