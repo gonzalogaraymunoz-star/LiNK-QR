@@ -88,6 +88,82 @@ const errorMessage = (err: unknown) => {
   }
 };
 
+const humanStage = (stage?: string | null) => {
+  const labels: Record<string, string> = {
+    new: 'Nuevo',
+    contacted: 'Contactado',
+    qualified: 'Calificado',
+    proposal: 'Propuesta enviada',
+    won: 'Cliente confirmado',
+    lost: 'No convertido',
+    paused: 'En pausa',
+  };
+  if (!stage) return 'Sin etapa';
+  return labels[stage.toLowerCase()] || stage.replaceAll('_', ' ');
+};
+
+const humanSource = (source?: string | null) => {
+  const labels: Record<string, string> = {
+    'hotel-experience': 'Hotel Experience',
+    'linkrrss-zernio': 'LINKRRSS',
+    'link-id': 'LINK ID',
+    whatsapp: 'WhatsApp',
+    instagram: 'Instagram',
+  };
+  if (!source) return 'Sin origen';
+  return labels[source.toLowerCase()] || source.replaceAll('-', ' ');
+};
+
+const humanClassification = (value: string) => {
+  const labels: Record<string, string> = {
+    imported_operational_lead: 'Importado desde operación',
+    operational_lead: 'Contacto de operación',
+    commercial_lead: 'Interés comercial',
+    traveler_transaction_candidate: 'Señal de reserva o pago',
+    commercial_lead_candidate: 'Posible oportunidad comercial',
+  };
+  return labels[value.toLowerCase()] || value.replaceAll('_', ' ');
+};
+
+const explanatoryTags = (lead: LinkLeadIdentity) => {
+  const tags = lead.tags || {};
+  const result: Array<{ label: string; technical: string }> = [];
+
+  const add = (label: string, technical: string) => {
+    if (!label || result.some((item) => item.label === label)) return;
+    result.push({ label, technical });
+  };
+
+  const sourcePage = tags.source_page;
+  if (sourcePage) add(`Llegó por ${String(sourcePage)}`, `source_page: ${String(sourcePage)}`);
+
+  const sourceCta = tags.source_cta;
+  if (sourceCta) add(`Respondió a “${String(sourceCta)}”`, `source_cta: ${String(sourceCta)}`);
+
+  const classification = tags.classification;
+  if (classification) {
+    add(humanClassification(String(classification)), `classification: ${String(classification)}`);
+  }
+
+  const intent = tags.intent_type;
+  if (intent) add(`Intención: ${String(intent).replaceAll('_', ' ')}`, `intent_type: ${String(intent)}`);
+
+  const product = tags.interested_product;
+  if (product) add(`Interés: ${String(product)}`, `interested_product: ${String(product)}`);
+
+  const pack = tags.interested_pack;
+  if (pack) add(`Interés: ${String(pack)}`, `interested_pack: ${String(pack)}`);
+
+  const confidence = tags.classification_confidence;
+  if (confidence) {
+    const value = String(confidence).toLowerCase();
+    const label = value === 'high' ? 'Clasificación segura' : value === 'medium' ? 'Clasificación probable' : 'Clasificación por revisar';
+    add(label, `classification_confidence: ${String(confidence)}`);
+  }
+
+  return result.slice(0, 4);
+};
+
 function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -736,7 +812,7 @@ export default function App() {
                       <th className="p-3">Lead</th>
                       <th className="p-3">Negocio</th>
                       <th className="p-3">Etapa</th>
-                      <th className="p-3">Etiquetas</th>
+                      <th className="p-3">Lectura LINK</th>
                       <th className="p-3">Origen</th>
                       <th className="p-3">QR</th>
                     </tr>
@@ -755,19 +831,26 @@ export default function App() {
                         </td>
                         <td className="p-3 text-xs">{lead.business_name || 'Sin negocio'}</td>
                         <td className="p-3">
-                          <span className="text-[10px] px-2 py-1 rounded-full bg-[#e9e2d3] font-semibold">{lead.stage}</span>
+                          <span className="text-[10px] px-2 py-1 rounded-full bg-[#e9e2d3] font-semibold">{humanStage(lead.stage)}</span>
                         </td>
                         <td className="p-3">
-                          <div className="flex flex-wrap gap-1 max-w-[340px]">
-                            {Object.entries(lead.tags || {}).slice(0, 5).map(([key, value]) => (
-                              <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#f4f0e6] text-[9px]">
-                                <Tag className="w-2.5 h-2.5" />
-                                {key}: {String(value)}
+                          <div className="flex flex-wrap gap-1 max-w-[360px]">
+                            {explanatoryTags(lead).map((item) => (
+                              <span
+                                key={item.technical}
+                                title={item.technical}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#f4f0e6] text-[9px] leading-tight"
+                              >
+                                <Tag className="w-2.5 h-2.5 shrink-0" />
+                                {item.label}
                               </span>
                             ))}
+                            {!explanatoryTags(lead).length && (
+                              <span className="text-[10px] text-[#999b93]">Sin contexto adicional</span>
+                            )}
                           </div>
                         </td>
-                        <td className="p-3 text-[10px] font-mono text-[#66685f]">{lead.source}</td>
+                        <td className="p-3 text-[10px] text-[#66685f]">{humanSource(lead.source)}</td>
                         <td className="p-3">
                           <button
                             onClick={() => {
@@ -892,7 +975,7 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="p-3 bg-[#f4f0e6] rounded-xl">
                           <div className="text-[9px] uppercase text-[#66685f]">Etapa comercial</div>
-                          <div className="text-xs font-semibold mt-1">{resolvedIdentity.stage}</div>
+                          <div className="text-xs font-semibold mt-1">{humanStage(resolvedIdentity.stage)}</div>
                         </div>
                         <div className="p-3 bg-[#f4f0e6] rounded-xl">
                           <div className="text-[9px] uppercase text-[#66685f]">Score</div>
@@ -901,13 +984,20 @@ export default function App() {
                       </div>
 
                       <div>
-                        <div className="text-[10px] uppercase text-[#66685f] font-semibold mb-2">Etiquetas existentes</div>
+                        <div className="text-[10px] uppercase text-[#66685f] font-semibold mb-2">Qué sabemos de esta entrada</div>
                         <div className="flex flex-wrap gap-1">
-                          {Object.entries(resolvedIdentity.tags || {}).map(([key, value]) => (
-                            <span key={key} className="px-2 py-1 rounded-lg bg-[#f4f0e6] text-[10px]">
-                              {key}: {String(value)}
+                          {explanatoryTags(resolvedIdentity).map((item) => (
+                            <span
+                              key={item.technical}
+                              title={item.technical}
+                              className="px-2 py-1 rounded-lg bg-[#f4f0e6] text-[10px]"
+                            >
+                              {item.label}
                             </span>
                           ))}
+                          {!explanatoryTags(resolvedIdentity).length && (
+                            <span className="text-[10px] text-[#999b93]">Sin contexto adicional.</span>
+                          )}
                         </div>
                       </div>
 
