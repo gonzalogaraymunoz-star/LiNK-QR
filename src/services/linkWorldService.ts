@@ -339,6 +339,31 @@ export async function getCouponCreativeUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
+export async function createLeadInteraction(input: {
+  lead_id: string;
+  action_type: string;
+  channel?: string | null;
+  source?: string;
+  margin_estimated?: number | null;
+  currency?: string;
+  confidence?: 'observed' | 'inferred' | 'estimated';
+  metadata?: Record<string, unknown>;
+}): Promise<string> {
+  const { data, error } = await client().rpc('link_ingest_lead_interaction_v1', {
+    p_lead_id: input.lead_id,
+    p_action_type: input.action_type,
+    p_channel: input.channel ?? null,
+    p_source: input.source || 'link-id',
+    p_margin_estimated: input.margin_estimated ?? null,
+    p_currency: input.currency || 'CLP',
+    p_confidence: input.confidence || 'observed',
+    p_metadata: input.metadata || {},
+    p_occurred_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+  return String(data);
+}
+
 export async function getCouponRedemptions(limit = 250): Promise<LinkCouponRedemption[]> {
   const { data, error } = await client()
     .from('link_coupon_redemptions')
@@ -388,6 +413,23 @@ export async function redeemCoupon(input: {
       redemption_business_id: input.offer.business_id,
     }
   );
+
+  await createLeadInteraction({
+    lead_id: input.identity.lead_id,
+    action_type: 'coupon_redeemed',
+    channel: 'qr_coupon',
+    source: 'link-cupones',
+    margin_estimated: Number(data.total_link_due || 0),
+    currency: input.offer.currency || 'CLP',
+    confidence: 'observed',
+    metadata: {
+      offer_id: input.offer.id,
+      offer_code: input.offer.offer_code,
+      redemption_id: data.id,
+      sale_amount: input.sale_amount,
+      total_link_due: data.total_link_due,
+    },
+  });
 
   return data as LinkCouponRedemption;
 }
