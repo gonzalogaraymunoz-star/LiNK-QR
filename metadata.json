@@ -1,0 +1,10 @@
+{
+  "name": "Remix Remix LINK OS QR — Centro de Control",
+  "description": "Centro de control de identidades y comportamiento QR para administración interna y operaciones de LINK.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
