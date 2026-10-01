@@ -5,11 +5,13 @@ import {
   LinkBusiness,
   LinkInteraction,
   LinkPersonGraph,
+  LinkPersonStudy,
   LinkProduct,
 } from '../services/linkWorldService.ts';
 
 interface Props {
   persons: LinkPersonGraph[];
+  studies: LinkPersonStudy[];
   interactions: LinkInteraction[];
   businesses: LinkBusiness[];
   products: LinkProduct[];
@@ -20,7 +22,7 @@ const fmt = (value?: string | null) =>
     ? new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
     : '—';
 
-export function PersonsView({ persons, interactions, businesses, products }: Props) {
+export function PersonsView({ persons, studies, interactions, businesses, products }: Props) {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(persons[0]?.person_id || null);
 
@@ -50,6 +52,10 @@ export function PersonsView({ persons, interactions, businesses, products }: Pro
     filtered[0] ||
     persons[0] ||
     null;
+
+  const study = selected
+    ? studies.find((item) => item.person_id === selected.person_id) || null
+    : null;
 
   const personInteractions = useMemo(
     () =>
@@ -197,6 +203,104 @@ export function PersonsView({ persons, interactions, businesses, products }: Pro
                   nombrePersona={selected.display_name || undefined}
                   size={190}
                 />
+              </div>
+            </div>
+
+            <div className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-5">
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#66685f]">
+                Ingeniería del lead
+              </div>
+              <h3 className="font-bold text-lg mt-1">Qué sabemos para convertir mejor</h3>
+
+              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-2 mt-4">
+                <div className="p-3 rounded-xl bg-[#f4f0e6]">
+                  <div className="text-[9px] uppercase text-[#66685f]">Nivel conversión</div>
+                  <div className="text-lg font-bold mt-1">{study?.max_conversion_level ?? '—'}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-[#f4f0e6]">
+                  <div className="text-[9px] uppercase text-[#66685f]">Prioridad</div>
+                  <div className="text-lg font-bold mt-1">{study?.max_priority_score ?? '—'}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-[#f4f0e6]">
+                  <div className="text-[9px] uppercase text-[#66685f]">Negocios tocados</div>
+                  <div className="text-lg font-bold mt-1">{study?.businesses_touched ?? graphBusinesses.length}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-[#f4f0e6]">
+                  <div className="text-[9px] uppercase text-[#66685f]">Margen estimado</div>
+                  <div className="text-lg font-bold mt-1">
+                    {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(study?.estimated_margin_total || 0)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-4 mt-4">
+                <div className="space-y-3">
+                  {[
+                    ['Necesidad', 'need'],
+                    ['Interés', 'interest'],
+                    ['Disparador', 'trigger'],
+                    ['Fricción', 'friction'],
+                    ['Momento', 'timing'],
+                    ['Canal', 'channel_preference'],
+                    ['Respuesta', 'response'],
+                    ['Valor', 'value'],
+                  ].map(([label, key]) => {
+                    const values = study?.signals?.[key] || [];
+                    return (
+                      <div key={key} className="p-3 rounded-xl border border-[#e9e2d3] bg-white">
+                        <div className="text-[9px] uppercase text-[#66685f]">{label}</div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {values.slice(0, 4).map((item, index) => (
+                            <span key={index} className="px-2 py-1 rounded-lg bg-[#f4f0e6] text-[10px]">
+                              {item.value}
+                            </span>
+                          ))}
+                          {!values.length && <span className="text-[10px] text-[#999b93]">Aún sin señal</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div>
+                  <div className="p-4 rounded-2xl bg-[#11120f] text-white">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-[#d8ff58]">
+                      Motor de conversión
+                    </div>
+                    {study?.conversion_assessments?.length ? (
+                      <>
+                        <div className="font-bold mt-3">
+                          {study.conversion_assessments[0]?.label || 'Evaluación disponible'}
+                        </div>
+                        <div className="text-xs text-white/70 mt-2 leading-5">
+                          {study.conversion_assessments[0]?.reason || 'Sin explicación disponible.'}
+                        </div>
+                        <div className="mt-4 p-3 rounded-xl bg-white/10">
+                          <div className="text-[9px] uppercase text-white/55">Siguiente acción</div>
+                          <div className="text-xs font-semibold mt-1">
+                            {study.conversion_assessments[0]?.recommended_action || 'Esperar nueva señal.'}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-xs text-white/65 mt-3">
+                        Todavía no hay evaluación suficiente para esta persona.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 p-4 rounded-2xl border border-[#e9e2d3] bg-white">
+                    <div className="text-[9px] uppercase text-[#66685f]">Fuentes que alimentan esta ficha</div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {(study?.interaction_sources || []).map((source) => (
+                        <span key={source} className="px-2 py-1 rounded-lg bg-[#f4f0e6] text-[10px]">{source}</span>
+                      ))}
+                      {!study?.interaction_sources?.length && (
+                        <span className="text-[10px] text-[#999b93]">Sin fuentes aún</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
