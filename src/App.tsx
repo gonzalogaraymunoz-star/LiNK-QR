@@ -22,6 +22,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { QrCodeRenderer } from './components/QrCodeRenderer.tsx';
+import { QrStudioView } from './components/QrStudioView.tsx';
 import {
   getCurrentSession,
   getSupabaseClient,
@@ -35,15 +36,20 @@ import {
   getCouponOffers,
   getCouponRedemptions,
   getLeadIdentities,
+  getProducts,
   getQrEvents,
+  getQrRegistry,
   redeemCoupon,
-  resolveIdentity,
+  resolveQrRegistryEntry,
   trackQrEvent,
+  trackRegistryQrEvent,
   LinkBusiness,
   LinkCouponOffer,
   LinkCouponRedemption,
   LinkLeadIdentity,
+  LinkProduct,
   LinkQrEvent,
+  LinkQrRegistryEntry,
 } from './services/linkWorldService.ts';
 
 type Section = 'resumen' | 'leads' | 'generador' | 'escaner' | 'actividad' | 'cupones';
@@ -165,6 +171,8 @@ export default function App() {
   const [businesses, setBusinesses] = useState<LinkBusiness[]>([]);
   const [identities, setIdentities] = useState<LinkLeadIdentity[]>([]);
   const [events, setEvents] = useState<LinkQrEvent[]>([]);
+  const [products, setProducts] = useState<LinkProduct[]>([]);
+  const [qrRegistry, setQrRegistry] = useState<LinkQrRegistryEntry[]>([]);
   const [offers, setOffers] = useState<LinkCouponOffer[]>([]);
   const [redemptions, setRedemptions] = useState<LinkCouponRedemption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -177,6 +185,7 @@ export default function App() {
 
   const [manualScan, setManualScan] = useState('');
   const [resolvedIdentity, setResolvedIdentity] = useState<LinkLeadIdentity | null>(null);
+  const [resolvedQrEntry, setResolvedQrEntry] = useState<LinkQrRegistryEntry | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
 
@@ -222,15 +231,19 @@ export default function App() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [businessData, identityData, eventData, offerData, redemptionData] = await Promise.all([
+      const [businessData, identityData, productData, registryData, eventData, offerData, redemptionData] = await Promise.all([
         getBusinesses(),
         getLeadIdentities(),
+        getProducts(),
+        getQrRegistry(),
         getQrEvents(),
         getCouponOffers(),
         getCouponRedemptions(),
       ]);
       setBusinesses(businessData);
       setIdentities(identityData);
+      setProducts(productData);
+      setQrRegistry(registryData);
       setEvents(eventData);
       setOffers(offerData);
       setRedemptions(redemptionData);
@@ -327,21 +340,41 @@ export default function App() {
       scanLockRef.current = true;
       setScanError(null);
 
-      const found = resolveIdentity(identities, value);
-      if (!found) {
+      const foundEntry = resolveQrRegistryEntry(qrRegistry, value);
+      if (!foundEntry) {
         setResolvedIdentity(null);
+        setResolvedQrEntry(null);
         setScanError('No encontré una identidad LINK asociada a este código.');
         scanLockRef.current = false;
         return;
       }
 
-      setResolvedIdentity(found);
-      setSelectedIdentityId(found.identity_id);
+      setResolvedQrEntry(foundEntry);
+      const foundLead =
+        foundEntry.entity_type === 'prospect'
+          ? identities.find((item) => item.identity_id === foundEntry.entity_id) || null
+          : null;
+
+      setResolvedIdentity(foundLead);
+      if (foundLead) setSelectedIdentityId(foundLead.identity_id);
 
       try {
-        await trackQrEvent(found, 'QR_SCANNED', 'Lectura desde LINK ID', {
-          scanned_value_type: value.toLowerCase().startsWith('lnk_qr_') ? 'token' : 'code',
-        });
+        await trackRegistryQrEvent(
+          foundEntry,
+          'QR_SCANNED',
+          'Lectura desde escáner universal LINK ID',
+          {
+            entity_type: foundEntry.entity_type,
+            scanned_value_type: value.toLowerCase().startsWith('lnk_qr_') ? 'token' : 'code',
+          }
+        );
+
+        if (foundLead) {
+          await trackQrEvent(foundLead, 'QR_SCANNED', 'Lectura desde LINK ID', {
+            scanned_value_type: value.toLowerCase().startsWith('lnk_qr_') ? 'token' : 'code',
+          });
+        }
+
         await loadAll();
         flash('Escaneo registrado');
       } catch (err) {
@@ -350,7 +383,7 @@ export default function App() {
         scanLockRef.current = false;
       }
     },
-    [identities, loadAll]
+    [identities, qrRegistry, loadAll]
   );
 
   const scanFrame = useCallback(() => {
@@ -462,7 +495,7 @@ export default function App() {
   const nav: Array<{ id: Section; label: string; icon: React.ReactNode }> = [
     { id: 'resumen', label: 'Resumen', icon: <Activity className="w-4 h-4" /> },
     { id: 'leads', label: 'Leads', icon: <Users className="w-4 h-4" /> },
-    { id: 'generador', label: 'Generador QR', icon: <QrCode className="w-4 h-4" /> },
+    { id: 'generador', label: 'QR Studio', icon: <QrCode className="w-4 h-4" /> },
     { id: 'escaner', label: 'Escáner', icon: <ScanLine className="w-4 h-4" /> },
     { id: 'actividad', label: 'Actividad', icon: <ShieldCheck className="w-4 h-4" /> },
     { id: 'cupones', label: 'Cupones', icon: <BadgePercent className="w-4 h-4" /> },
@@ -547,8 +580,8 @@ export default function App() {
               {[
                 { label: 'Leads mapeados', value: identities.length, Icon: Users },
                 { label: 'Negocios LINK', value: businesses.length, Icon: Building2 },
-                { label: 'Eventos QR', value: events.length, Icon: ScanLine },
-                { label: 'Cupones activos', value: offers.filter((o) => o.status === 'active').length, Icon: TicketCheck },
+                { label: 'Códigos únicos', value: qrRegistry.length, Icon: ScanLine },
+                { label: 'Productos LINK', value: products.length, Icon: TicketCheck },
                 { label: 'Por liquidar', value: money(totalLinkDue), Icon: WalletCards },
               ].map(({ label, value, Icon }) => (
                 <div key={label} className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-4">
@@ -708,67 +741,13 @@ export default function App() {
         )}
 
         {section === 'generador' && (
-          <div className="grid lg:grid-cols-[360px_1fr] gap-5">
-            <div className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-4 max-h-[74vh] overflow-auto">
-              <div className="font-bold mb-3">Selecciona un lead</div>
-              <div className="space-y-2">
-                {identities.map((lead) => (
-                  <button
-                    key={lead.identity_id}
-                    onClick={() => setSelectedIdentityId(lead.identity_id)}
-                    className={`w-full text-left p-3 rounded-xl border ${
-                      selectedIdentity?.identity_id === lead.identity_id
-                        ? 'border-[#11120f] bg-white'
-                        : 'border-[#e9e2d3] hover:bg-white'
-                    }`}
-                  >
-                    <div className="font-mono text-[10px] font-bold">{lead.universal_code}</div>
-                    <div className="text-xs font-semibold mt-1">{lead.full_name || lead.company || 'Lead sin nombre'}</div>
-                    <div className="text-[10px] text-[#66685f] mt-0.5">{lead.business_name || 'Sin negocio'}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-6 flex items-center justify-center min-h-[600px]">
-              {selectedIdentity ? (
-                <div className="w-full max-w-xl text-center">
-                  <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-[#66685f]">QR permanente</div>
-                  <h2 className="text-2xl font-bold mt-1 mb-1">
-                    {selectedIdentity.full_name || selectedIdentity.company || selectedIdentity.universal_code}
-                  </h2>
-                  <div className="text-xs text-[#66685f] mb-6">{selectedIdentity.business_name || 'Sin negocio asignado'}</div>
-
-                  <QrCodeRenderer
-                    token={selectedIdentity.qr_token}
-                    codigoLink={selectedIdentity.universal_code}
-                    nombrePersona={selectedIdentity.full_name || selectedIdentity.company || undefined}
-                    size={260}
-                  />
-
-                  <button
-                    onClick={registerGeneration}
-                    className="mt-5 px-4 py-2 rounded-xl bg-[#d8ff58] text-[#11120f] text-xs font-bold border border-[#11120f]"
-                  >
-                    Registrar esta generación
-                  </button>
-
-                  <div className="mt-6 grid grid-cols-2 gap-2 text-left">
-                    <div className="p-3 rounded-xl bg-[#f4f0e6]">
-                      <div className="text-[9px] uppercase text-[#66685f]">Estado</div>
-                      <div className="text-xs font-semibold mt-1">{selectedIdentity.qr_status}</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#f4f0e6]">
-                      <div className="text-[9px] uppercase text-[#66685f]">Origen</div>
-                      <div className="text-xs font-semibold mt-1 truncate">{selectedIdentity.source}</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-[#66685f]">No hay leads mapeados.</div>
-              )}
-            </div>
-          </div>
+          <QrStudioView
+            entries={qrRegistry}
+            businesses={businesses}
+            products={products}
+            initialEntityId={selectedIdentityId}
+            onRefresh={loadAll}
+          />
         )}
 
         {section === 'escaner' && (
@@ -820,11 +799,11 @@ export default function App() {
             </div>
 
             <div className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-5">
-              {!resolvedIdentity ? (
+              {!resolvedQrEntry ? (
                 <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center text-[#66685f]">
                   <CircleUserRound className="w-10 h-10 mb-3" />
                   <div className="text-sm font-semibold text-[#11120f]">Esperando identidad</div>
-                  <div className="text-xs mt-1">El resultado mostrará el lead, negocio, etiquetas y código universal.</div>
+                  <div className="text-xs mt-1">Puede reconocer un prospecto, negocio o producto LINK.</div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -832,46 +811,75 @@ export default function App() {
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
                     <div>
                       <div className="text-xs font-bold">IDENTIDAD LINK RECONOCIDA</div>
-                      <div className="text-[11px] text-emerald-800 mt-1">{resolvedIdentity.universal_code}</div>
+                      <div className="text-[11px] text-emerald-800 mt-1">{resolvedQrEntry.universal_code}</div>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-xl font-bold">{resolvedIdentity.full_name || resolvedIdentity.company || 'Lead sin nombre'}</h3>
-                    <div className="text-xs text-[#66685f] mt-1">{resolvedIdentity.business_name || 'Sin negocio asignado'}</div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-[#66685f]">{resolvedQrEntry.entity_type}</div>
+                    <h3 className="text-xl font-bold mt-1">{resolvedQrEntry.label}</h3>
+                    <div className="text-xs text-[#66685f] mt-1">
+                      {resolvedQrEntry.entity_type === 'business'
+                        ? 'Negocio LINK'
+                        : businesses.find((item) => item.id === resolvedQrEntry.business_id)?.name || 'Sin negocio asociado'}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="p-3 bg-[#f4f0e6] rounded-xl">
-                      <div className="text-[9px] uppercase text-[#66685f]">Etapa</div>
-                      <div className="text-xs font-semibold mt-1">{resolvedIdentity.stage}</div>
+                      <div className="text-[9px] uppercase text-[#66685f]">Tipo</div>
+                      <div className="text-xs font-semibold mt-1">{resolvedQrEntry.entity_type}</div>
                     </div>
                     <div className="p-3 bg-[#f4f0e6] rounded-xl">
-                      <div className="text-[9px] uppercase text-[#66685f]">Score</div>
-                      <div className="text-xs font-semibold mt-1">{resolvedIdentity.score}</div>
+                      <div className="text-[9px] uppercase text-[#66685f]">Estado</div>
+                      <div className="text-xs font-semibold mt-1">{resolvedQrEntry.status}</div>
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-[10px] uppercase text-[#66685f] font-semibold mb-2">Etiquetas existentes</div>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.entries(resolvedIdentity.tags || {}).map(([key, value]) => (
-                        <span key={key} className="px-2 py-1 rounded-lg bg-[#f4f0e6] text-[10px]">
-                          {key}: {String(value)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  {resolvedIdentity && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-3 bg-[#f4f0e6] rounded-xl">
+                          <div className="text-[9px] uppercase text-[#66685f]">Etapa comercial</div>
+                          <div className="text-xs font-semibold mt-1">{resolvedIdentity.stage}</div>
+                        </div>
+                        <div className="p-3 bg-[#f4f0e6] rounded-xl">
+                          <div className="text-[9px] uppercase text-[#66685f]">Score</div>
+                          <div className="text-xs font-semibold mt-1">{resolvedIdentity.score}</div>
+                        </div>
+                      </div>
 
-                  <button
-                    onClick={() => {
-                      setCouponLeadId(resolvedIdentity.identity_id);
-                      setSection('cupones');
-                    }}
-                    className="w-full py-3 rounded-xl bg-[#d8ff58] border border-[#11120f] text-xs font-bold"
-                  >
-                    Usar esta identidad en LINK Cupones
-                  </button>
+                      <div>
+                        <div className="text-[10px] uppercase text-[#66685f] font-semibold mb-2">Etiquetas existentes</div>
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(resolvedIdentity.tags || {}).map(([key, value]) => (
+                            <span key={key} className="px-2 py-1 rounded-lg bg-[#f4f0e6] text-[10px]">
+                              {key}: {String(value)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setCouponLeadId(resolvedIdentity.identity_id);
+                          setSection('cupones');
+                        }}
+                        className="w-full py-3 rounded-xl bg-[#d8ff58] border border-[#11120f] text-xs font-bold"
+                      >
+                        Usar este prospecto en LINK Cupones
+                      </button>
+                    </>
+                  )}
+
+                  {!resolvedIdentity && (
+                    <button
+                      onClick={() => setSection('generador')}
+                      className="w-full py-3 rounded-xl bg-[#11120f] text-[#d8ff58] text-xs font-bold"
+                    >
+                      Abrir esta identidad en QR Studio
+                    </button>
+                  )}
                 </div>
               )}
             </div>
