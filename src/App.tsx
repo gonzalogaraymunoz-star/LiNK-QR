@@ -395,6 +395,9 @@ export default function App() {
       if (!needle) return true;
       return [
         item.universal_code,
+        item.identity_label,
+        item.person_display_name,
+        item.internal_reference,
         item.full_name,
         item.email,
         item.phone,
@@ -826,8 +829,12 @@ export default function App() {
                           </span>
                         </td>
                         <td className="p-3">
-                          <div className="text-xs font-semibold">{lead.full_name || lead.company || 'Lead sin nombre'}</div>
-                          <div className="text-[10px] text-[#66685f]">{lead.email || lead.phone || lead.external_ref || 'sin contacto visible'}</div>
+                          <div className="text-xs font-semibold">{lead.identity_label || lead.person_display_name || lead.full_name || lead.company || 'Identidad por resolver'}</div>
+                          <div className="text-[10px] text-[#66685f]">
+                            {lead.internal_reference
+                              ? `Ref. ${lead.internal_reference}`
+                              : lead.email || lead.phone || lead.external_ref || 'sin contacto visible'}
+                          </div>
                         </td>
                         <td className="p-3 text-xs">{lead.business_name || 'Sin negocio'}</td>
                         <td className="p-3">
