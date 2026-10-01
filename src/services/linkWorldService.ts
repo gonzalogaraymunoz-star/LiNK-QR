@@ -38,6 +38,12 @@ export interface LinkLeadIdentity {
   lead_created_at: string;
   lead_updated_at: string;
   tags: Record<string, string | number | boolean | null>;
+  person_id?: string | null;
+  person_universal_code?: string | null;
+  person_display_name?: string | null;
+  identity_label?: string | null;
+  identity_basis?: 'person_name' | 'lead_name' | 'email' | 'phone' | 'unresolved' | null;
+  internal_reference?: string | null;
 }
 
 export interface LinkQrEvent {
