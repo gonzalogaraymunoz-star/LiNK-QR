@@ -76,6 +76,18 @@ const money = (value: number | null | undefined, currency = 'CLP') =>
     maximumFractionDigits: currency === 'CLP' ? 0 : 2,
   }).format(Number(value || 0));
 
+const errorMessage = (err: unknown) => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err && 'message' in err) {
+    return String((err as { message?: unknown }).message || 'Error desconocido');
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+};
+
 function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -290,7 +302,7 @@ export default function App() {
         setSelectedOfferId((current) => current || offerData[0].id);
       }
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err));
+      setLoadError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -680,6 +692,7 @@ export default function App() {
             interactions={interactions}
             businesses={businesses}
             products={products}
+            onRefresh={loadAll}
           />
         )}
 
