@@ -39,6 +39,7 @@ import {
   getLeadIdentities,
   getInteractions,
   getPersonGraph,
+  getPersonStudies,
   getProducts,
   getQrEvents,
   getQrRegistry,
@@ -52,6 +53,7 @@ import {
   LinkInteraction,
   LinkLeadIdentity,
   LinkPersonGraph,
+  LinkPersonStudy,
   LinkProduct,
   LinkQrEvent,
   LinkQrRegistryEntry,
@@ -176,6 +178,7 @@ export default function App() {
   const [businesses, setBusinesses] = useState<LinkBusiness[]>([]);
   const [identities, setIdentities] = useState<LinkLeadIdentity[]>([]);
   const [persons, setPersons] = useState<LinkPersonGraph[]>([]);
+  const [personStudies, setPersonStudies] = useState<LinkPersonStudy[]>([]);
   const [interactions, setInteractions] = useState<LinkInteraction[]>([]);
   const [events, setEvents] = useState<LinkQrEvent[]>([]);
   const [products, setProducts] = useState<LinkProduct[]>([]);
@@ -242,6 +245,7 @@ export default function App() {
         businessData,
         identityData,
         personData,
+        personStudyData,
         interactionData,
         productData,
         registryData,
@@ -252,6 +256,7 @@ export default function App() {
         getBusinesses(),
         getLeadIdentities(),
         getPersonGraph(),
+        getPersonStudies(),
         getInteractions(),
         getProducts(),
         getQrRegistry(),
@@ -262,6 +267,7 @@ export default function App() {
       setBusinesses(businessData);
       setIdentities(identityData);
       setPersons(personData);
+      setPersonStudies(personStudyData);
       setInteractions(interactionData);
       setProducts(productData);
       setQrRegistry(registryData);
@@ -670,6 +676,7 @@ export default function App() {
         {section === 'personas' && (
           <PersonsView
             persons={persons}
+            studies={personStudies}
             interactions={interactions}
             businesses={businesses}
             products={products}
