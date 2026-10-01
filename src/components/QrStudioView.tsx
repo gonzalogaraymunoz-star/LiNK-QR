@@ -19,13 +19,15 @@ interface Props {
 }
 
 const labels: Record<EntityType, string> = {
+  person: 'Personas',
   prospect: 'Prospectos',
   business: 'Negocios',
   product: 'Productos',
 };
 
 const descriptions: Record<EntityType, string> = {
-  prospect: 'Personas y prospectos listos para convertir, ofertar y reconocer.',
+  person: 'Pasaporte único de cada persona dentro del ecosistema.',
+  prospect: 'Puertas de entrada y oportunidades comerciales asociadas a personas.',
   business: 'Identidad única de cada célula comercial de LINK World.',
   product: 'Identidad única de cada producto u oferta que vive dentro de un negocio.',
 };
@@ -37,7 +39,7 @@ export function QrStudioView({
   initialEntityId,
   onRefresh,
 }: Props) {
-  const [type, setType] = useState<EntityType>('prospect');
+  const [type, setType] = useState<EntityType>('person');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export function QrStudioView({
 
   const counts = useMemo(
     () => ({
+      person: entries.filter((entry) => entry.entity_type === 'person').length,
       prospect: entries.filter((entry) => entry.entity_type === 'prospect').length,
       business: entries.filter((entry) => entry.entity_type === 'business').length,
       product: entries.filter((entry) => entry.entity_type === 'product').length,
@@ -105,7 +108,7 @@ export function QrStudioView({
   };
 
   const iconFor = (entityType: EntityType) => {
-    if (entityType === 'prospect') return <UserRound className="w-4 h-4" />;
+    if (entityType === 'person' || entityType === 'prospect') return <UserRound className="w-4 h-4" />;
     if (entityType === 'business') return <Building2 className="w-4 h-4" />;
     return <Boxes className="w-4 h-4" />;
   };
@@ -118,12 +121,12 @@ export function QrStudioView({
         </div>
         <h2 className="text-2xl font-bold tracking-tight">QR Studio</h2>
         <p className="text-sm text-[#66685f] mt-1">
-          Un QR único por prospecto, negocio y producto. El código identifica; la interacción ocurre después.
+          Un QR único por persona, prospecto, negocio y producto. El código identifica; la interacción ocurre después.
         </p>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3">
-        {(['prospect', 'business', 'product'] as EntityType[]).map((entityType) => (
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {(['person', 'prospect', 'business', 'product'] as EntityType[]).map((entityType) => (
           <button
             key={entityType}
             onClick={() => {
@@ -248,8 +251,11 @@ export function QrStudioView({
                     Triangulación LINK
                   </div>
                   <div className="text-sm mt-3 leading-6">
+                    {selected.entity_type === 'person' && (
+                      <>Este es el <b>pasaporte LINK</b>. Responde quién es la persona y acumula su historia a través de múltiples entradas.</>
+                    )}
                     {selected.entity_type === 'prospect' && (
-                      <>Este QR responde <b>quién</b>. Al cruzarlo con un negocio y un producto, LINK puede registrar la oportunidad.</>
+                      <>Este QR es una <b>puerta de entrada</b>. Su interacción puede terminar asociada al pasaporte único de la persona.</>
                     )}
                     {selected.entity_type === 'business' && (
                       <>Este QR responde <b>dónde</b>. Puede cruzarse con cualquier prospecto y con los productos de esta célula.</>
