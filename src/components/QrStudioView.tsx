@@ -20,17 +20,34 @@ interface Props {
 
 const labels: Record<EntityType, string> = {
   person: 'Personas',
-  prospect: 'Prospectos',
+  prospect: 'Entradas',
   business: 'Negocios',
   product: 'Productos',
 };
 
 const descriptions: Record<EntityType, string> = {
   person: 'Pasaporte único de cada persona dentro del ecosistema.',
-  prospect: 'Puertas de entrada y oportunidades comerciales asociadas a personas.',
+  prospect: 'Solicitudes, contactos y oportunidades. Cada entrada pertenece a una Persona LINK cuando podemos identificarla.',
   business: 'Identidad única de cada célula comercial de LINK World.',
   product: 'Identidad única de cada producto u oferta que vive dentro de un negocio.',
 };
+
+const humanStatus = (status?: string | null) => {
+  const labels: Record<string, string> = {
+    active: 'Activa',
+    paused: 'Pausada',
+    revoked: 'Revocada',
+  };
+  return labels[String(status || '').toLowerCase()] || status || 'Sin estado';
+};
+
+const metaText = (entry: LinkQrRegistryEntry, key: string) => {
+  const value = entry.metadata?.[key];
+  return value == null ? '' : String(value);
+};
+
+const entityTypeLabel = (type: EntityType) =>
+  type === 'prospect' ? 'entrada' : type === 'person' ? 'persona' : type === 'business' ? 'negocio' : 'producto';
 
 export function QrStudioView({
   entries,
@@ -121,7 +138,7 @@ export function QrStudioView({
         </div>
         <h2 className="text-2xl font-bold tracking-tight">QR Studio</h2>
         <p className="text-sm text-[#66685f] mt-1">
-          Un QR único por persona, prospecto, negocio y producto. El código identifica; la interacción ocurre después.
+          Un QR único por persona, entrada, negocio y producto. La persona es la identidad; la entrada conserva el contexto de cada contacto.
         </p>
       </div>
 
@@ -185,10 +202,15 @@ export function QrStudioView({
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-[10px] font-bold">{entry.universal_code}</span>
                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#d8ff58] text-[#11120f]">
-                      {entry.status}
+                      {humanStatus(entry.status)}
                     </span>
                   </div>
                   <div className="text-xs font-semibold mt-1">{entry.label}</div>
+                  {entry.entity_type === 'prospect' && metaText(entry, 'internal_reference') && (
+                    <div className="text-[9px] font-mono text-[#8a8b84] mt-0.5">
+                      Ref. {metaText(entry, 'internal_reference')}
+                    </div>
+                  )}
                   <div className="text-[10px] text-[#66685f] mt-0.5">
                     {entry.entity_type === 'business'
                       ? 'Negocio LINK'
@@ -213,7 +235,7 @@ export function QrStudioView({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#66685f]">
-                    {selected.entity_type}
+                    {entityTypeLabel(selected.entity_type)}
                   </span>
                   <span className="text-[9px] px-2 py-1 rounded-full bg-[#f4f0e6]">
                     QR permanente
@@ -231,8 +253,24 @@ export function QrStudioView({
                   </div>
                   <div className="p-4 rounded-2xl bg-[#f4f0e6]">
                     <div className="text-[9px] uppercase text-[#66685f]">Estado</div>
-                    <div className="text-sm font-semibold mt-1">{selected.status}</div>
+                    <div className="text-sm font-semibold mt-1">{humanStatus(selected.status)}</div>
                   </div>
+                  {selected.entity_type === 'prospect' && (
+                    <>
+                      <div className="p-4 rounded-2xl bg-white border border-[#e9e2d3]">
+                        <div className="text-[9px] uppercase text-[#66685f]">Persona LINK</div>
+                        <div className="text-sm font-semibold mt-1">
+                          {metaText(selected, 'person_universal_code') || 'Por resolver'}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-white border border-[#e9e2d3]">
+                        <div className="text-[9px] uppercase text-[#66685f]">Referencia interna</div>
+                        <div className="text-sm font-semibold mt-1">
+                          {metaText(selected, 'internal_reference') || 'Sin referencia'}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {product && (
@@ -255,7 +293,7 @@ export function QrStudioView({
                       <>Este es el <b>pasaporte LINK</b>. Responde quién es la persona y acumula su historia a través de múltiples entradas.</>
                     )}
                     {selected.entity_type === 'prospect' && (
-                      <>Este QR es una <b>puerta de entrada</b>. Su interacción puede terminar asociada al pasaporte único de la persona.</>
+                      <>Este QR representa una <b>entrada</b>: una solicitud o contacto concreto. {metaText(selected, 'person_universal_code') ? <>Ya está vinculada al <b>pasaporte LINK</b> de la persona.</> : <>La identidad humana todavía está <b>por resolver</b>.</>}</>
                     )}
                     {selected.entity_type === 'business' && (
                       <>Este QR responde <b>dónde</b>. Puede cruzarse con cualquier prospecto y con los productos de esta célula.</>
