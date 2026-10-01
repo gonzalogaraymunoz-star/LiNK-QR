@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { QrCodeRenderer } from './components/QrCodeRenderer.tsx';
 import { QrStudioView } from './components/QrStudioView.tsx';
+import { PersonsView } from './components/PersonsView.tsx';
 import {
   getCurrentSession,
   getSupabaseClient,
@@ -36,6 +37,8 @@ import {
   getCouponOffers,
   getCouponRedemptions,
   getLeadIdentities,
+  getInteractions,
+  getPersonGraph,
   getProducts,
   getQrEvents,
   getQrRegistry,
@@ -46,13 +49,15 @@ import {
   LinkBusiness,
   LinkCouponOffer,
   LinkCouponRedemption,
+  LinkInteraction,
   LinkLeadIdentity,
+  LinkPersonGraph,
   LinkProduct,
   LinkQrEvent,
   LinkQrRegistryEntry,
 } from './services/linkWorldService.ts';
 
-type Section = 'resumen' | 'leads' | 'generador' | 'escaner' | 'actividad' | 'cupones';
+type Section = 'resumen' | 'personas' | 'leads' | 'generador' | 'escaner' | 'actividad' | 'cupones';
 
 const formatDate = (value?: string | null) =>
   value
@@ -170,6 +175,8 @@ export default function App() {
 
   const [businesses, setBusinesses] = useState<LinkBusiness[]>([]);
   const [identities, setIdentities] = useState<LinkLeadIdentity[]>([]);
+  const [persons, setPersons] = useState<LinkPersonGraph[]>([]);
+  const [interactions, setInteractions] = useState<LinkInteraction[]>([]);
   const [events, setEvents] = useState<LinkQrEvent[]>([]);
   const [products, setProducts] = useState<LinkProduct[]>([]);
   const [qrRegistry, setQrRegistry] = useState<LinkQrRegistryEntry[]>([]);
@@ -231,9 +238,21 @@ export default function App() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [businessData, identityData, productData, registryData, eventData, offerData, redemptionData] = await Promise.all([
+      const [
+        businessData,
+        identityData,
+        personData,
+        interactionData,
+        productData,
+        registryData,
+        eventData,
+        offerData,
+        redemptionData,
+      ] = await Promise.all([
         getBusinesses(),
         getLeadIdentities(),
+        getPersonGraph(),
+        getInteractions(),
         getProducts(),
         getQrRegistry(),
         getQrEvents(),
@@ -242,6 +261,8 @@ export default function App() {
       ]);
       setBusinesses(businessData);
       setIdentities(identityData);
+      setPersons(personData);
+      setInteractions(interactionData);
       setProducts(productData);
       setQrRegistry(registryData);
       setEvents(eventData);
@@ -494,7 +515,8 @@ export default function App() {
 
   const nav: Array<{ id: Section; label: string; icon: React.ReactNode }> = [
     { id: 'resumen', label: 'Resumen', icon: <Activity className="w-4 h-4" /> },
-    { id: 'leads', label: 'Leads', icon: <Users className="w-4 h-4" /> },
+    { id: 'personas', label: 'Personas', icon: <CircleUserRound className="w-4 h-4" /> },
+    { id: 'leads', label: 'Entradas', icon: <Users className="w-4 h-4" /> },
     { id: 'generador', label: 'QR Studio', icon: <QrCode className="w-4 h-4" /> },
     { id: 'escaner', label: 'Escáner', icon: <ScanLine className="w-4 h-4" /> },
     { id: 'actividad', label: 'Actividad', icon: <ShieldCheck className="w-4 h-4" /> },
@@ -515,7 +537,7 @@ export default function App() {
                   <h1 className="font-bold tracking-tight">LINK ID</h1>
                   <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[#d8ff58]">WORLD CORE</span>
                 </div>
-                <p className="text-[11px] text-[#66685f]">Identidad de leads · QR · LINK Cupones</p>
+                <p className="text-[11px] text-[#66685f]">Personas · rutas · QR · negocios · productos</p>
               </div>
             </div>
 
@@ -570,18 +592,18 @@ export default function App() {
           <div className="space-y-6">
             <div>
               <div className="font-mono text-[10px] tracking-[0.18em] text-[#66685f] uppercase">Mapa transversal</div>
-              <h2 className="text-2xl font-bold tracking-tight mt-1">Todos los leads, un código LINK</h2>
+              <h2 className="text-2xl font-bold tracking-tight mt-1">Cada persona, un universo LINK</h2>
               <p className="text-sm text-[#66685f] mt-1">
-                El etiquetado comercial existente se conserva. LINK ID agrega una identidad y QR permanente sobre cada lead.
+                Las entradas se agrupan bajo una Persona LINK y su ruta se dibuja con cada interacción real.
               </p>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {[
-                { label: 'Leads mapeados', value: identities.length, Icon: Users },
-                { label: 'Negocios LINK', value: businesses.length, Icon: Building2 },
-                { label: 'Códigos únicos', value: qrRegistry.length, Icon: ScanLine },
-                { label: 'Productos LINK', value: products.length, Icon: TicketCheck },
+                { label: 'Personas LINK', value: persons.length, Icon: CircleUserRound },
+                { label: 'Entradas / leads', value: identities.length, Icon: Users },
+                { label: 'Interacciones', value: interactions.length, Icon: ScanLine },
+                { label: 'Negocios / productos', value: `${businesses.length} / ${products.length}`, Icon: TicketCheck },
                 { label: 'Por liquidar', value: money(totalLinkDue), Icon: WalletCards },
               ].map(({ label, value, Icon }) => (
                 <div key={label} className="bg-[#fffdf7] border border-[#e9e2d3] rounded-2xl p-4">
@@ -643,6 +665,15 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {section === 'personas' && (
+          <PersonsView
+            persons={persons}
+            interactions={interactions}
+            businesses={businesses}
+            products={products}
+          />
         )}
 
         {section === 'leads' && (
