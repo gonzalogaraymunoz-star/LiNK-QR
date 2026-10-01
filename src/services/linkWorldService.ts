@@ -98,6 +98,63 @@ export interface LinkCouponRedemption {
   created_at: string;
 }
 
+export interface LinkLeadWorkboard {
+  identity_id: string;
+  lead_id: string;
+  universal_code: string;
+  person_id: string | null;
+  person_universal_code: string | null;
+  identity_label: string | null;
+  identity_basis: string | null;
+  internal_reference: string | null;
+  business_id: string | null;
+  business_name: string | null;
+  source: string | null;
+  source_page: string | null;
+  source_cta: string | null;
+  stage: string;
+  score: number;
+  interested_pack: string | null;
+  interested_product: string | null;
+  lead_created_at: string;
+  lead_updated_at: string;
+  last_activity_at: string;
+  interaction_count: number;
+  social_interactions: number;
+  days_idle: number;
+  engine_priority: number | null;
+  conversion_level: number | null;
+  conversion_label: string | null;
+  recommended_action: string | null;
+  assessed_at: string | null;
+  manual_priority: number | null;
+  pinned: boolean;
+  priority_note: string | null;
+  effective_priority: number;
+  relevance_state: 'hot' | 'warm' | 'cooling' | 'cold' | 'historical';
+  lead_month: string;
+  coupon_consumptions: number;
+  link_value_generated: number;
+}
+
+export interface LinkCouponOfferProfile {
+  offer_id: string;
+  product_id: string | null;
+  headline: string | null;
+  ad_copy: string | null;
+  cta: string | null;
+  audience: string | null;
+  creative_path: string | null;
+  creative_name: string | null;
+  campaign_notes: string | null;
+  learnings: string | null;
+  next_improvement: string | null;
+  version: number;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 function client() {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Supabase no está configurado.');
@@ -198,6 +255,88 @@ export async function createCouponOffer(input: {
 
   if (error) throw error;
   return data as LinkCouponOffer;
+}
+
+export async function getLeadWorkboard(): Promise<LinkLeadWorkboard[]> {
+  const { data, error } = await client()
+    .from('link_lead_workboard_v')
+    .select('*')
+    .order('pinned', { ascending: false })
+    .order('effective_priority', { ascending: false })
+    .order('last_activity_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as LinkLeadWorkboard[];
+}
+
+export async function setLeadPriority(input: {
+  lead_id: string;
+  manual_priority: number | null;
+  pinned: boolean;
+  note?: string;
+}): Promise<void> {
+  const { error } = await client().rpc('link_set_lead_priority_v1', {
+    p_lead_id: input.lead_id,
+    p_manual_priority: input.manual_priority,
+    p_pinned: input.pinned,
+    p_note: input.note || '',
+  });
+  if (error) throw error;
+}
+
+export async function getCouponProfiles(): Promise<LinkCouponOfferProfile[]> {
+  const { data, error } = await client()
+    .from('link_coupon_offer_profiles')
+    .select('*')
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as LinkCouponOfferProfile[];
+}
+
+export async function updateCouponProfile(input: {
+  offer_id: string;
+  product_id?: string | null;
+  headline?: string;
+  ad_copy?: string;
+  cta?: string;
+  audience?: string;
+  creative_path?: string | null;
+  creative_name?: string | null;
+  campaign_notes?: string;
+  learnings?: string;
+  next_improvement?: string;
+}): Promise<void> {
+  const { error } = await client().rpc('link_update_coupon_profile_v1', {
+    p_offer_id: input.offer_id,
+    p_product_id: input.product_id || null,
+    p_headline: input.headline || '',
+    p_ad_copy: input.ad_copy || '',
+    p_cta: input.cta || '',
+    p_audience: input.audience || '',
+    p_creative_path: input.creative_path || null,
+    p_creative_name: input.creative_name || null,
+    p_campaign_notes: input.campaign_notes || '',
+    p_learnings: input.learnings || '',
+    p_next_improvement: input.next_improvement || '',
+  });
+  if (error) throw error;
+}
+
+export async function uploadCouponCreative(offerId: string, file: File): Promise<{ path: string; name: string }> {
+  if (file.size > 25 * 1024 * 1024) throw new Error('La pieza supera el máximo de 25 MB.');
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-');
+  const path = `${offerId}/${Date.now()}-${safe}`;
+  const { error } = await client().storage.from('link-coupon-creatives').upload(path, file, {
+    contentType: file.type || undefined,
+    upsert: false,
+  });
+  if (error) throw error;
+  return { path, name: file.name };
+}
+
+export async function getCouponCreativeUrl(path: string): Promise<string> {
+  const { data, error } = await client().storage.from('link-coupon-creatives').createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 export async function getCouponRedemptions(limit = 250): Promise<LinkCouponRedemption[]> {
