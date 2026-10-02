@@ -26,8 +26,8 @@ const labels: Record<EntityType, string> = {
 };
 
 const descriptions: Record<EntityType, string> = {
-  person: 'Pasaporte único de cada persona dentro del ecosistema.',
-  prospect: 'Solicitudes, contactos y oportunidades. Cada entrada pertenece a una Persona LINK cuando podemos identificarla.',
+  person: 'Persona identificada por nombre natural y con un punto real de contacto.',
+  prospect: 'Lead utilizable: nombre natural + teléfono, email o canal social conectado.',
   business: 'Identidad única de cada célula comercial de LINK World.',
   product: 'Identidad única de cada producto u oferta que vive dentro de un negocio.',
 };
@@ -44,6 +44,26 @@ const humanStatus = (status?: string | null) => {
 const metaText = (entry: LinkQrRegistryEntry, key: string) => {
   const value = entry.metadata?.[key];
   return value == null ? '' : String(value);
+};
+
+const contactChannelLabel = (value: string) =>
+  ({
+    email: 'Email',
+    phone: 'Teléfono',
+    instagram: 'Instagram',
+    instagram_dm: 'Instagram',
+    whatsapp: 'WhatsApp',
+    facebook: 'Facebook',
+    facebook_messenger: 'Facebook',
+  } as Record<string, string>)[value.toLowerCase()] || value;
+
+const contactValue = (entry: LinkQrRegistryEntry) => {
+  const channel = metaText(entry, 'contact_channel').toLowerCase();
+  const point = metaText(entry, 'contact_point');
+  if (['instagram', 'instagram_dm', 'whatsapp', 'facebook', 'facebook_messenger'].includes(channel)) {
+    return 'Conversación conectada';
+  }
+  return point || '—';
 };
 
 const entityTypeLabel = (type: EntityType) =>
@@ -140,6 +160,9 @@ export function QrStudioView({
         <p className="text-sm text-[#66685f] mt-1">
           Un QR único por persona, entrada, negocio y producto. La persona es la identidad; la entrada conserva el contexto de cada contacto.
         </p>
+        <div className="mt-3 inline-flex items-center rounded-full border border-[#d9d3c6] bg-[#fffdf7] px-3 py-1.5 text-[10px] font-semibold text-[#4d4f48]">
+          Regla: solo aparece un lead con nombre natural + punto de contacto.
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -206,6 +229,11 @@ export function QrStudioView({
                     </span>
                   </div>
                   <div className="text-xs font-semibold mt-1">{entry.label}</div>
+                  {(entry.entity_type === 'person' || entry.entity_type === 'prospect') && metaText(entry, 'contact_channel') && (
+                    <div className="text-[9px] text-[#66685f] mt-0.5">
+                      {contactChannelLabel(metaText(entry, 'contact_channel'))} · {contactValue(entry)}
+                    </div>
+                  )}
                   {entry.entity_type === 'prospect' && metaText(entry, 'internal_reference') && (
                     <div className="text-[9px] font-mono text-[#8a8b84] mt-0.5">
                       Ref. {metaText(entry, 'internal_reference')}
@@ -267,6 +295,20 @@ export function QrStudioView({
                         <div className="text-[9px] uppercase text-[#66685f]">Referencia interna</div>
                         <div className="text-sm font-semibold mt-1">
                           {metaText(selected, 'internal_reference') || 'Sin referencia'}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {(selected.entity_type === 'person' || selected.entity_type === 'prospect') && (
+                    <>
+                      <div className="p-4 rounded-2xl bg-white border border-[#e9e2d3]">
+                        <div className="text-[9px] uppercase text-[#66685f]">Punto de contacto</div>
+                        <div className="text-sm font-semibold mt-1">{contactValue(selected)}</div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-white border border-[#e9e2d3]">
+                        <div className="text-[9px] uppercase text-[#66685f]">Canal</div>
+                        <div className="text-sm font-semibold mt-1">
+                          {contactChannelLabel(metaText(selected, 'contact_channel') || '—')}
                         </div>
                       </div>
                     </>
