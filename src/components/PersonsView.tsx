@@ -263,7 +263,7 @@ export function PersonsView({
           </div>
           <h2 className="text-2xl font-bold tracking-tight">Personas LINK</h2>
           <p className="text-sm text-[#66685f] mt-1">
-            Una persona, un pasaporte vivo. La ficha se completa con evidencia, interacción y confirmación humana.
+            Una persona, un solo pasaporte LINK. Si vuelve por otro canal o negocio, se suma al mismo recorrido.
           </p>
         </div>
         <div className="text-[11px] text-[#66685f]">
