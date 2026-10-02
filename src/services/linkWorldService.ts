@@ -44,6 +44,10 @@ export interface LinkLeadIdentity {
   identity_label?: string | null;
   identity_basis?: 'person_name' | 'lead_name' | 'email' | 'phone' | 'unresolved' | null;
   internal_reference?: string | null;
+  natural_name?: string | null;
+  contact_point?: string | null;
+  contact_channel?: string | null;
+  quality_state?: 'usable' | 'missing_natural_name' | 'missing_contact' | 'missing_name_and_contact' | null;
 }
 
 export interface LinkQrEvent {
@@ -107,6 +111,10 @@ export interface LinkLeadWorkboard {
   identity_label: string | null;
   identity_basis: string | null;
   internal_reference: string | null;
+  natural_name?: string | null;
+  contact_point?: string | null;
+  contact_channel?: string | null;
+  quality_state?: string | null;
   business_id: string | null;
   business_name: string | null;
   source: string | null;
@@ -172,11 +180,15 @@ export async function getBusinesses(): Promise<LinkBusiness[]> {
 
 export async function getLeadIdentities(): Promise<LinkLeadIdentity[]> {
   const { data, error } = await client()
-    .from('link_lead_identity_v')
+    .from('link_contactable_lead_identity_v')
     .select('*')
     .order('lead_created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as LinkLeadIdentity[];
+  return (data || []).map((item) => ({
+    ...item,
+    identity_label: item.natural_name || item.identity_label,
+    identity_basis: item.natural_name ? 'lead_name' : item.identity_basis,
+  })) as LinkLeadIdentity[];
 }
 
 export async function getQrEvents(limit = 250): Promise<LinkQrEvent[]> {
@@ -259,13 +271,16 @@ export async function createCouponOffer(input: {
 
 export async function getLeadWorkboard(): Promise<LinkLeadWorkboard[]> {
   const { data, error } = await client()
-    .from('link_lead_workboard_v')
+    .from('link_contactable_lead_workboard_v')
     .select('*')
     .order('pinned', { ascending: false })
     .order('effective_priority', { ascending: false })
     .order('last_activity_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as LinkLeadWorkboard[];
+  return (data || []).map((item) => ({
+    ...item,
+    identity_label: item.natural_name || item.identity_label,
+  })) as LinkLeadWorkboard[];
 }
 
 export async function setLeadPriority(input: {
@@ -498,7 +513,7 @@ export async function getProducts(): Promise<LinkProduct[]> {
 
 export async function getQrRegistry(): Promise<LinkQrRegistryEntry[]> {
   const { data, error } = await client()
-    .from('link_qr_registry')
+    .from('link_qr_registry_usable_v')
     .select('*')
     .order('entity_type')
     .order('label');
@@ -590,6 +605,8 @@ export interface LinkPersonGraph {
   detected_channels?: string[];
   completeness_percent?: number;
   profile_stage?: 'inicial' | 'identificada' | 'enriquecida' | 'conocida';
+  contact_point?: string | null;
+  contact_channel?: string | null;
 }
 
 export interface LinkInteraction {
@@ -611,7 +628,7 @@ export interface LinkInteraction {
 
 export async function getPersonGraph(): Promise<LinkPersonGraph[]> {
   const { data, error } = await client()
-    .from('link_person_profile_v')
+    .from('link_contactable_person_profile_v')
     .select('*')
     .neq('status', 'merged')
     .order('last_interaction_at', { ascending: false, nullsFirst: false });
