@@ -25,6 +25,7 @@ import { QrCodeRenderer } from './components/QrCodeRenderer.tsx';
 import { QrStudioView } from './components/QrStudioView.tsx';
 import { PersonsView } from './components/PersonsView.tsx';
 import { LeadDashboard } from './components/LeadDashboard.tsx';
+import { MerchantRadar } from './components/MerchantRadar.tsx';
 import { CouponOfferProfilePanel } from './components/CouponOfferProfilePanel.tsx';
 import {
   getCurrentSession,
@@ -66,7 +67,7 @@ import {
   LinkQrRegistryEntry,
 } from './services/linkWorldService.ts';
 
-type Section = 'resumen' | 'personas' | 'leads' | 'generador' | 'escaner' | 'actividad' | 'cupones';
+type Section = 'comercios' | 'resumen' | 'personas' | 'leads' | 'generador' | 'escaner' | 'actividad' | 'cupones';
 
 const formatDate = (value?: string | null) =>
   value
@@ -641,6 +642,7 @@ export default function App() {
   if (!session) return <LoginScreen />;
 
   const nav: Array<{ id: Section; label: string; icon: React.ReactNode }> = [
+    { id: 'comercios', label: 'Comercios', icon: <Building2 className="w-4 h-4" /> },
     { id: 'resumen', label: 'Resumen', icon: <Activity className="w-4 h-4" /> },
     { id: 'personas', label: 'Personas', icon: <CircleUserRound className="w-4 h-4" /> },
     { id: 'leads', label: 'Entradas', icon: <Users className="w-4 h-4" /> },
@@ -714,6 +716,8 @@ export default function App() {
             {toast}
           </div>
         )}
+
+        {section === 'comercios' && <MerchantRadar />}
 
         {section === 'resumen' && (
           <div className="space-y-6">
